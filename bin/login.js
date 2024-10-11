@@ -1,0 +1,11 @@
+const path = require('path')
+const { createCommand } = require('commander')
+const constants = require('../lib/constants.js')
+
+module.exports = createCommand('login')
+  .description('connect to a P2P shell')
+  .argument('<key or name>', 'public key or name of the server')
+  .option('-f <filename>', 'filename of the client seed key', path.join(constants.dir, 'id'))
+  .option('-L <[address:]port:host:hostport...>', 'local port forwarding')
+  .option('--bootstrap <nodes...>', 'custom dht nodes')
+  .action(require('../lib/bin/login.js'))

@@ -3,49 +3,68 @@
 Spawn shells anywhere. Fully peer-to-peer, authenticated, and end to end encrypted.
 
 ## Install
+
 ```
 npm i -g hypershell
 ```
 
 ## Usage
+
 ```shell
-# Create keys
-hypershell-keygen [-f keyfile] [-c comment]
+# Create a key
+hypershell keygen [-f keyfile] [-c comment]
 
 # Create a P2P server
-hypershell-server [-f keyfile] [--firewall filename] [--disable-firewall] [--protocol name]
+hypershell server [-f keyfile] [--firewall filename] [--disable-firewall] [--protocol name]
 
 # Connect to a P2P shell
-hypershell <server key or name> [-f keyfile]
+hypershell login <server key or name> [-f keyfile]
 
 # Local tunnel that forwards to remote host
-hypershell <server key or name> -L [address:]port:host:hostport
+hypershell tunnel <server key or name> -L [address:]port:host:hostport
 
 # Copy files (download and upload)
-hypershell-copy <[@host:]source> <[@host:]target> [-f keyfile]
+hypershell copy <[@host:]source> <[@host:]target> [-f keyfile]
 ```
 
-Use `--help` with any command for more information, for example `hypershell-server --help`.
+Use `--help` with any command for more information, for example `hypershell server --help`.
+
+It can also be imported as a library:
+
+```js
+const Hypershell = require('hypershell')
+
+const keyPair = Hypershell.keygen({ filename, comment })
+
+const closeServer = await Hypershell.server({ firewall })
+const closeServer = await Hypershell.login({ firewall })
+
+```
 
 ## First steps
+
 Keys are automatically created with a default filename on first run.
 
 Otherwise, you can first do:
-```bash
-hypershell-keygen
+
+```sh
+hypershell keygen
 ```
 
 Just connect to servers (they have to allow your public key):
-```bash
-hypershell <server name or public key>
+
+```sh
+hypershell login <server name or public key>
 ```
 
 You could also create a server:
-```bash
-hypershell-server
+
+```sh
+hypershell server
 ```
 
-`~/.hypershell/authorized_peers` file will be empty, denying all connections by default.\
+`~/.hypershell/authorized_peers` file will be empty, denying all connections by default.
+
 Public keys can be added to the list to allow them in real-time.
 
 Or you can use the `--disable-firewall` flag to allow anyone to connect, useful for public services like game servers.
