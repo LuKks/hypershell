@@ -3,6 +3,7 @@ const Protomux = require('protomux')
 const HypercoreId = require('hypercore-id-encoding')
 const crypto = require('hypercore-crypto')
 const { ShellServer, ShellClient } = require('./lib/protocols/shell.js')
+const Copy = require('./lib/protocols/copy.js')
 
 module.exports = class Hypershell {
   constructor (opts = {}) {
@@ -20,6 +21,18 @@ module.exports = class Hypershell {
         mux.pair({ protocol: 'hypershell' }, function () {
           ShellServer.attach(mux)
         })
+
+        mux.pair({ protocol: 'hypershell-copy' }, function () {
+          Copy.attach(mux, { permissions: ['pack', 'extract'] })
+        })
+
+        /* mux.pair({ protocol: 'hypershell-copy-upload' }, function () {
+          CopyUpload.attach(mux)
+        })
+
+        mux.pair({ protocol: 'hypershell-copy-download' }, function () {
+          CopyDownload.attach(mux)
+        }) */
       }
     })
   }
@@ -32,6 +45,29 @@ module.exports = class Hypershell {
       stdin: opts.stdin,
       stdout: opts.stdout
     })
+  }
+
+  tunnel () {
+
+  }
+
+  copy (publicKey, opts = {}) {
+    const client = new Client(this.dht, publicKey, opts)
+    const mux = Protomux.from(client.socket)
+
+    return { upload, download, close }
+
+    async function upload (source, destination) {
+      await Copy.upload(mux, source, destination)
+    }
+
+    async function download (source, destination) {
+      await Copy.download(mux, source, destination)
+    }
+
+    async function close () {
+      mux.destroy()
+    }
   }
 
   async destroy () {

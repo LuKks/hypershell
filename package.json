@@ -36,6 +36,7 @@
     "protomux-rpc": "^1.6.0",
     "pump": "^3.0.2",
     "read-file-live": "^1.0.1",
+    "tar-fs": "^3.0.6",
     "tiny-configs": "^1.1.0",
     "tt-native": "^1.1.1"
   }

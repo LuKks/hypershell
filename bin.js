@@ -10,6 +10,7 @@ const main = program
   .addCommand(require('./bin/keygen.js'))
   .addCommand(require('./bin/server.js'))
   .addCommand(require('./bin/login.js'))
+  .addCommand(require('./bin/copy.js'))
 
 main.parseAsync().catch(err => {
   safetyCatch(err)
