@@ -18,10 +18,10 @@ hypershell keygen [-f keyfile] [-c comment]
 hypershell server [-f keyfile] [--firewall filename] [--disable-firewall] [--protocol name]
 
 # Connect to a P2P shell
-hypershell login <server key or name> [-f keyfile]
+hypershell login <server-key-or-name> [-f keyfile]
 
 # Local tunnel that forwards to remote host
-hypershell tunnel <server key or name> -L [address:]port:host:hostport
+hypershell tunnel <server-key-or-name> -L [address:]port:host:hostport
 
 # Copy files (download and upload)
 hypershell copy <[@host:]source> <[@host:]target> [-f keyfile]
@@ -34,11 +34,22 @@ It can also be imported as a library:
 ```js
 const Hypershell = require('hypershell')
 
-const keyPair = Hypershell.keygen({ filename, comment })
+const hs = new Hypershell()
 
-const closeServer = await Hypershell.server({ firewall })
-const closeServer = await Hypershell.login({ firewall })
+const server = hs.createServer()
+await server.listen()
 
+const keyPair = crypto.keyPair()
+
+server.firewall = [keyPair.publicKey]
+
+const shell = hs.login(server.publicKey, { keyPair })
+
+shell.stdin.write('echo "Hello World!"\n')
+
+await shell.close()
+await server.close()
+await hs.destroy()
 ```
 
 ## First steps
@@ -112,6 +123,12 @@ In this example, creates a local tunnel at `127.0.0.1:2020` (where you can conne
 that later gets forwarded to a remote server which it connects to `127.0.0.1:3000`:
 ```bash
 hypershell remote_peer -L 127.0.0.1:2020:127.0.0.1:3000
+
+# Local 8080 -> Remote 1080
+hypershell tunnel <peer> -L 8080:127.0.0.1:1080:127.0.0.1
+
+# Remote 80 -> Local 3000
+hypershell tunnel <peer> -R 80:127.0.0.1:3000:127.0.0.1
 ```
 
 Instead of `remote_peer` you can use the server public key as well.
@@ -131,13 +148,13 @@ Let's say you have a local project like a React app at `http://127.0.0.1:3000/`,
 you can create a restricted server to safely share this unique port like so:
 
 ```bash
-hypershell-server --protocol tunnel --tunnel-host 127.0.0.1 --tunnel-port 3000
+hypershell server --protocol tunnel --tunnel 127.0.0.1:3000
 ```
 
 Or if you want to allow multiple hosts, port range, etc:
 
 ```bash
-hypershell-server --protocol tunnel --tunnel-host 127.0.0.1 --tunnel-host 192.168.0.25 --tunnel-port 1080 --tunnel-port 3000 --tunnel-port 4100-4200
+hypershell server --protocol tunnel --tunnel 127.0.0.1:4100-4200 --tunnel 192.168.0.25:1080
 ```
 
 Clients trying to use any different hosts/ports are automatically disconnected.

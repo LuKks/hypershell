@@ -4,6 +4,7 @@ const HypercoreId = require('hypercore-id-encoding')
 const crypto = require('hypercore-crypto')
 const { ShellServer, ShellClient } = require('./lib/protocols/shell.js')
 const Copy = require('./lib/protocols/copy.js')
+const Tunnel = require('./lib/protocols/tunnel.js')
 
 module.exports = class Hypershell {
   constructor (opts = {}) {
@@ -18,21 +19,28 @@ module.exports = class Hypershell {
       onsocket: function (socket) {
         const mux = Protomux.from(socket)
 
-        mux.pair({ protocol: 'hypershell' }, function () {
-          ShellServer.attach(mux)
-        })
+        if (this.protocols.includes('shell')) {
+          mux.pair({ protocol: 'hypershell' }, () => {
+            ShellServer.attach(mux)
+          })
+        }
 
-        mux.pair({ protocol: 'hypershell-copy' }, function () {
-          Copy.attach(mux, { permissions: ['pack', 'extract'] })
-        })
+        if (this.protocols.includes('copy')) {
+          mux.pair({ protocol: 'hypershell-copy' }, () => {
+            Copy.attach(mux, { permissions: ['pack', 'extract'] })
+          })
+        }
 
-        /* mux.pair({ protocol: 'hypershell-copy-upload' }, function () {
-          CopyUpload.attach(mux)
-        })
+        if (this.protocols.includes('tunnel')) {
+          mux.pair({ protocol: 'hypershell-tunnel' }, () => {
+            const tunnel = new Tunnel(this.dht, null, {
+              mux,
+              allow: opts.tunnel?.allow
+            })
 
-        mux.pair({ protocol: 'hypershell-copy-download' }, function () {
-          CopyDownload.attach(mux)
-        }) */
+            tunnel._createChannel()
+          })
+        }
       }
     })
   }
@@ -45,10 +53,6 @@ module.exports = class Hypershell {
       stdin: opts.stdin,
       stdout: opts.stdout
     })
-  }
-
-  tunnel () {
-
   }
 
   copy (publicKey, opts = {}) {
@@ -70,6 +74,10 @@ module.exports = class Hypershell {
     }
   }
 
+  tunnel (publicKey, opts = {}) {
+    return new Tunnel(this.dht, publicKey, opts)
+  }
+
   async destroy () {
     if (this._autoDestroy) {
       await this.dht.destroy()
@@ -83,6 +91,7 @@ class Server {
     this.keyPair = opts.keyPair || crypto.keyPair(opts.seed)
     this.firewall = opts.firewall || opts.firewall === null ? opts.firewall : []
     this.verbose = !!opts.verbose
+    this.protocols = opts.protocols || ['shell', 'copy', 'tunnel']
 
     this._server = this.dht.createServer({
       firewall: this._onFirewall.bind(this)
