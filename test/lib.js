@@ -176,8 +176,6 @@ test('tunnel allowance', async function (t) {
     }
   })
 
-  // server.tunnel.allow(['127.0.0.1:' + remotePort])
-
   await server.listen()
 
   const tunnel = hs.tunnel(server.publicKey)
@@ -206,7 +204,7 @@ test('tunnel allowance', async function (t) {
   await hs.destroy()
 })
 
-test.solo('basic tunnel - remote forwarding', async function (t) {
+test('basic tunnel - remote forwarding', async function (t) {
   t.plan(1)
 
   const t2 = t.test('tunnel')
@@ -236,8 +234,6 @@ test.solo('basic tunnel - remote forwarding', async function (t) {
 
   const proxy = await tunnel.remote(remotePort + ':127.0.0.1', localPort + ':127.0.0.1')
 
-  // await new Promise(resolve => setTimeout(resolve, 500))
-
   const socket = net.connect(remotePort, '127.0.0.1')
 
   socket.on('data', function (data) {
@@ -251,6 +247,36 @@ test.solo('basic tunnel - remote forwarding', async function (t) {
   await new Promise(resolve => socket.on('close', resolve))
 
   await proxy.close()
+  await tunnel.close()
+  await server.close()
+  await hs.destroy()
+})
+
+test('tunnels - failed to connect to server', async function (t) {
+  t.plan(2)
+
+  const hs = await createHypershell(t)
+
+  const server = hs.createServer({ firewall: null })
+  await server.listen()
+  await server.close() // Server is closed!
+
+  const tunnel = hs.tunnel(server.publicKey)
+
+  try {
+    await tunnel.local(await freePort(), await freePort())
+    t.fail()
+  } catch (err) {
+    t.is(err.message, 'Could not connect to server')
+  }
+
+  try {
+    await tunnel.remote(await freePort(), await freePort())
+    t.fail()
+  } catch (err) {
+    t.is(err.message, 'Could not connect to server')
+  }
+
   await tunnel.close()
   await server.close()
   await hs.destroy()

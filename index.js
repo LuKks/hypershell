@@ -33,12 +33,10 @@ module.exports = class Hypershell {
 
         if (this.protocols.includes('tunnel')) {
           mux.pair({ protocol: 'hypershell-tunnel' }, () => {
-            const tunnel = new Tunnel(this.dht, null, {
+            Tunnel.attach(this.dht, socket.publicKey, {
               mux,
               allow: opts.tunnel?.allow
             })
-
-            tunnel._createChannel()
           })
         }
       }
