@@ -2,6 +2,7 @@ const DHT = require('hyperdht')
 const Protomux = require('protomux')
 const HypercoreId = require('hypercore-id-encoding')
 const crypto = require('hypercore-crypto')
+const safetyCatch = require('safety-catch')
 const { ShellServer, ShellClient } = require('./lib/protocols/shell.js')
 const Copy = require('./lib/protocols/copy.js')
 const Tunnel = require('./lib/protocols/tunnel.js')
@@ -44,18 +45,53 @@ module.exports = class Hypershell {
   }
 
   login (publicKey, opts = {}) {
-    const client = new Client(this.dht, publicKey, opts)
+    const socket = this.dht.connect(publicKey, {
+      keyPair: opts.keyPair || crypto.keyPair(opts.seed),
+      reusableSocket: true
+    })
 
-    return new ShellClient(client.socket, {
+    socket.setKeepAlive(5000)
+
+    socket.on('error', onSocketError)
+
+    return new ShellClient(socket, {
       rawArgs: opts.rawArgs,
       stdin: opts.stdin,
       stdout: opts.stdout
     })
+
+    function onSocketError (err) {
+      if (opts.onerror) {
+        opts.onerror(err)
+      }
+
+      if (opts.inherit) {
+        process.exitCode = 1
+      }
+
+      if (!opts.verbose) {
+        return
+      }
+
+      if (err.code === 'ECONNRESET') console.error('Connection closed.')
+      else if (err.code === 'ETIMEDOUT') console.error('Connection timed out.')
+      else if (err.code === 'PEER_NOT_FOUND') console.error(err.message)
+      else if (err.code === 'PEER_CONNECTION_FAILED') console.error(err.message, '(probably firewalled)')
+      else console.error(err)
+    }
   }
 
   copy (publicKey, opts = {}) {
-    const client = new Client(this.dht, publicKey, opts)
-    const mux = Protomux.from(client.socket)
+    const socket = this.dht.connect(publicKey, {
+      keyPair: opts.keyPair || crypto.keyPair(opts.seed),
+      reusableSocket: true
+    })
+
+    socket.setKeepAlive(5000)
+
+    socket.on('error', safetyCatch)
+
+    const mux = Protomux.from(socket)
 
     return { upload, download, close }
 
@@ -118,20 +154,13 @@ class Server {
   _onConnection (socket) {
     this._connections.add(socket)
 
+    if (this.verbose) {
+      console.log('Connection opened', HypercoreId.encode(socket.remotePublicKey))
+    }
+
     socket.setKeepAlive(5000)
 
-    socket.on('end', function () {
-      socket.end()
-    })
-
-    socket.on('error', function (err) {
-      if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') {
-        return
-      }
-
-      // TODO
-      console.error(err.code, err)
-    })
+    socket.on('error', safetyCatch)
 
     socket.on('close', () => {
       this._connections.delete(socket)
@@ -140,10 +169,6 @@ class Server {
         console.log('Connection closed', HypercoreId.encode(socket.remotePublicKey))
       }
     })
-
-    if (this.verbose) {
-      console.log('Connection opened', HypercoreId.encode(socket.remotePublicKey))
-    }
 
     if (this._onsocket) {
       this._onsocket(socket)
@@ -166,61 +191,6 @@ class Server {
     }
 
     return true
-  }
-}
-
-class Client {
-  constructor (dht, publicKey, opts = {}) {
-    this.dht = dht
-    this.keyPair = opts.keyPair || crypto.keyPair(opts.seed)
-    this.verbose = !!opts.verbose
-    this.inherit = !!opts.inherit
-
-    this.socket = this.dht.connect(publicKey, {
-      keyPair: this.keyPair,
-      reusableSocket: opts.reusableSocket
-    })
-
-    this._onerror = opts.onerror || null
-
-    this._open()
-  }
-
-  _open () {
-    this.socket.setKeepAlive(5000)
-
-    this.socket.on('error', this._onSocketError.bind(this))
-    this.socket.on('end', this._onSocketEnd.bind(this))
-    this.socket.on('close', this._onSocketClose.bind(this))
-  }
-
-  _onSocketEnd () {
-    this.socket.end()
-  }
-
-  _onSocketError (err) {
-    if (this._onerror) {
-      this._onerror(err)
-    }
-
-    if (this.inherit) {
-      process.exitCode = 1
-    }
-
-    if (!this.verbose) {
-      return
-    }
-
-    if (err.code === 'ECONNRESET') console.error('Connection closed.')
-    else if (err.code === 'ETIMEDOUT') console.error('Connection timed out.')
-    else if (err.code === 'PEER_NOT_FOUND') console.error(err.message)
-    else if (err.code === 'PEER_CONNECTION_FAILED') console.error(err.message, '(probably firewalled)')
-    else console.error(err)
-  }
-
-  _onSocketClose () {
-    // TODO: Improve by removing listeners etc
-    // this.close().catch(safetyCatch)
   }
 }
 
