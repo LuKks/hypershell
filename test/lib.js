@@ -49,16 +49,16 @@ test('basic shell', async function (t) {
   t.absent(getStreamError(shell.socket))
 })
 
-test('server is closed first', async function (t) {
+test('shell - server is closed first', async function (t) {
   const hs = await createHypershell(t)
 
   const server = hs.createServer({ firewall: null })
   await server.listen()
 
-  const shell = hs.login(server.publicKey)
+  let exitCode = null
+  const shell = hs.login(server.publicKey, { onerror })
 
   await shell.ready()
-
   await server.close()
   await shell.channel.fullyClosed()
   await hs.destroy()
@@ -66,6 +66,29 @@ test('server is closed first', async function (t) {
   const err = getStreamError(shell.socket)
 
   t.is(err.code, 'ECONNRESET')
+  t.is(exitCode, 1)
+
+  function onerror () {
+    exitCode = 1
+  }
+})
+
+test('shell - exit code', async function (t) {
+  const hs = await createHypershell(t)
+
+  const server = hs.createServer({ firewall: null })
+  await server.listen()
+
+  const shell = hs.login(server.publicKey)
+  await shell.ready()
+
+  shell.stdin.write('exit 127\n')
+
+  await shell.channel.fullyClosed()
+  t.is(shell.exitCode, 127)
+
+  await server.close()
+  await hs.destroy()
 })
 
 test('basic copy', async function (t) {
