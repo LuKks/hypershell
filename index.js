@@ -15,33 +15,32 @@ module.exports = class Hypershell {
   }
 
   createServer (opts = {}) {
-    return new Server(this.dht, {
-      ...opts,
-      onsocket: function (socket) {
-        const mux = Protomux.from(socket)
+    return new Server(this.dht, { ...opts, onsocket })
 
-        if (this.protocols.includes('shell')) {
-          mux.pair({ protocol: 'hypershell' }, () => {
-            ShellServer.attach(mux)
-          })
-        }
+    function onsocket (socket) {
+      const mux = Protomux.from(socket)
 
-        if (this.protocols.includes('copy')) {
-          mux.pair({ protocol: 'hypershell-copy' }, () => {
-            Copy.attach(mux, { permissions: ['pack', 'extract'] })
-          })
-        }
-
-        if (this.protocols.includes('tunnel')) {
-          mux.pair({ protocol: 'hypershell-tunnel' }, () => {
-            Tunnel.attach(this.dht, socket.publicKey, {
-              mux,
-              allow: opts.tunnel?.allow
-            })
-          })
-        }
+      if (this.protocols.includes('shell')) {
+        mux.pair({ protocol: 'hypershell' }, () => {
+          ShellServer.attach(mux)
+        })
       }
-    })
+
+      if (this.protocols.includes('copy')) {
+        mux.pair({ protocol: 'hypershell-copy' }, () => {
+          Copy.attach({ mux, permissions: ['pack', 'extract'] })
+        })
+      }
+
+      if (this.protocols.includes('tunnel')) {
+        mux.pair({ protocol: 'hypershell-tunnel' }, () => {
+          Tunnel.attach(this.dht, socket.publicKey, {
+            mux,
+            allow: opts.tunnel?.allow
+          })
+        })
+      }
+    }
   }
 
   login (publicKey, opts = {}) {
@@ -52,7 +51,7 @@ module.exports = class Hypershell {
 
     socket.setKeepAlive(5000)
 
-    socket.on('error', onSocketError)
+    socket.on('error', onerror)
 
     return new ShellClient(socket, {
       rawArgs: opts.rawArgs,
@@ -60,52 +59,15 @@ module.exports = class Hypershell {
       stdout: opts.stdout
     })
 
-    function onSocketError (err) {
+    function onerror (err) {
       if (opts.onerror) {
         opts.onerror(err)
       }
-
-      if (opts.inherit) {
-        process.exitCode = 1
-      }
-
-      if (!opts.verbose) {
-        return
-      }
-
-      if (err.code === 'ECONNRESET') console.error('Connection closed.')
-      else if (err.code === 'ETIMEDOUT') console.error('Connection timed out.')
-      else if (err.code === 'PEER_NOT_FOUND') console.error(err.message)
-      else if (err.code === 'PEER_CONNECTION_FAILED') console.error(err.message, '(probably firewalled)')
-      else console.error(err)
     }
   }
 
   copy (publicKey, opts = {}) {
-    const socket = this.dht.connect(publicKey, {
-      keyPair: opts.keyPair || crypto.keyPair(opts.seed),
-      reusableSocket: true
-    })
-
-    socket.setKeepAlive(5000)
-
-    socket.on('error', safetyCatch)
-
-    const mux = Protomux.from(socket)
-
-    return { upload, download, close }
-
-    async function upload (source, destination) {
-      await Copy.upload(mux, source, destination)
-    }
-
-    async function download (source, destination) {
-      await Copy.download(mux, source, destination)
-    }
-
-    async function close () {
-      mux.destroy()
-    }
+    return new Copy(this.dht, publicKey, opts)
   }
 
   tunnel (publicKey, opts = {}) {
