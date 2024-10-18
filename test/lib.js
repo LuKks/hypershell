@@ -294,6 +294,45 @@ test('tunnels - failed to connect to server', async function (t) {
   await server.close()
 })
 
+test('tunnel - remote forwarding - retry on background', async function (t) {
+  t.plan(2)
+
+  const [hs1, hs2] = await createHypershells(t)
+  const serverKeyPair = crypto.keyPair()
+  const clientKeyPair = crypto.keyPair()
+
+  const server = hs1.createServer({ keyPair: serverKeyPair, firewall: [clientKeyPair.publicKey] })
+  await server.listen()
+
+  const tunnel = hs2.tunnel(server.publicKey, { keyPair: clientKeyPair })
+
+  const localPort = await createTcpServer(t, socket => {
+    socket.on('data', function (data) {
+      socket.write('Hello World!')
+    })
+  })
+
+  const remotePort = await freePort()
+
+  const proxy = await tunnel.remote(remotePort + ':127.0.0.1', localPort + ':127.0.0.1')
+
+  t.alike(await recv(remotePort), Buffer.from('Hello World!'))
+
+  // Server closed!
+  await server.close()
+
+  const server2 = hs1.createServer({ keyPair: serverKeyPair, firewall: [clientKeyPair.publicKey] })
+  await server2.listen()
+
+  await new Promise(resolve => setTimeout(resolve, 2000))
+
+  t.alike(await recv(remotePort), Buffer.from('Hello World!'))
+
+  await proxy.close()
+  await tunnel.close()
+  await server2.close()
+})
+
 test('chaos of tunnels', async function (t) {
   t.plan(20)
 
@@ -375,32 +414,32 @@ test('chaos of tunnels', async function (t) {
 
   await tunnel.close()
   await server.close()
-
-  async function recv (port, host) {
-    const socket = net.connect(port, host || '127.0.0.1')
-
-    socket.on('error', () => {})
-
-    const connecting = new Promise(resolve => socket.once('connect', () => resolve(true)))
-    const closing = new Promise(resolve => socket.once('close', () => resolve(false)))
-
-    const opened = await Promise.race([connecting, closing])
-
-    if (!opened) {
-      return null
-    }
-
-    socket.write('echo')
-
-    const message = await new Promise(resolve => socket.once('data', resolve))
-
-    socket.end()
-
-    await closing
-
-    return message
-  }
 })
+
+async function recv (port, host) {
+  const socket = net.connect(port, host || '127.0.0.1')
+
+  socket.on('error', () => {})
+
+  const connecting = new Promise(resolve => socket.once('connect', () => resolve(true)))
+  const closing = new Promise(resolve => socket.once('close', () => resolve(false)))
+
+  const opened = await Promise.race([connecting, closing])
+
+  if (!opened) {
+    return null
+  }
+
+  socket.write('echo')
+
+  const message = await new Promise(resolve => socket.once('data', resolve))
+
+  socket.end()
+
+  await closing
+
+  return message
+}
 
 async function createHypershells (t) {
   const { bootstrap } = await createTestnet(3, t.teardown)
