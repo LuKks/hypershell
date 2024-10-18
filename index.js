@@ -6,6 +6,7 @@ const safetyCatch = require('safety-catch')
 const { ShellServer, ShellClient } = require('./lib/protocols/shell.js')
 const Copy = require('./lib/protocols/copy.js')
 const Tunnel = require('./lib/protocols/tunnel.js')
+const { AdminServer, AdminClient } = require('./lib/protocols/admin.js')
 
 module.exports = class Hypershell {
   constructor (opts = {}) {
@@ -15,7 +16,9 @@ module.exports = class Hypershell {
   }
 
   createServer (opts = {}) {
-    return new Server(this.dht, { ...opts, onsocket })
+    const server = new Server(this.dht, { ...opts, onsocket })
+
+    return server
 
     function onsocket (socket) {
       const mux = Protomux.from(socket)
@@ -38,6 +41,12 @@ module.exports = class Hypershell {
             mux,
             allow: opts.tunnel?.allow
           })
+        })
+      }
+
+      if (this.protocols.includes('admin')) {
+        mux.pair({ protocol: 'hypershell-admin' }, () => {
+          AdminServer.attach(socket, server)
         })
       }
     }
@@ -74,6 +83,10 @@ module.exports = class Hypershell {
     return new Tunnel(this.dht, publicKey, opts)
   }
 
+  admin (publicKey, opts = {}) {
+    return new AdminClient(this.dht, publicKey, opts)
+  }
+
   async destroy () {
     if (this._autoDestroy) {
       await this.dht.destroy()
@@ -88,10 +101,13 @@ module.exports = class Hypershell {
 class Server {
   constructor (dht, opts = {}) {
     this.dht = dht
+
     this.keyPair = opts.keyPair || crypto.keyPair(opts.seed)
     this.firewall = opts.firewall || opts.firewall === null ? opts.firewall : []
     this.verbose = !!opts.verbose
-    this.protocols = opts.protocols || ['shell', 'copy', 'tunnel']
+    this.protocols = opts.protocols || ['shell', 'copy', 'tunnel', 'admin']
+
+    this.invites = new Map()
 
     this._server = this.dht.createServer({
       firewall: this._onFirewall.bind(this)
@@ -142,8 +158,22 @@ class Server {
   }
 
   _onFirewall (remotePublicKey, remoteHandshakePayload) {
+    this._cleanupInvites()
+
     if (this.firewall === null) {
       return false
+    }
+
+    for (const [publicKey] of this.invites) {
+      if (remotePublicKey.equals(Buffer.from(publicKey, 'hex'))) {
+        if (this.verbose) {
+          console.log('Invite accepted:', HypercoreId.encode(remotePublicKey))
+        }
+
+        this.invites.delete(publicKey)
+
+        return false
+      }
     }
 
     for (const publicKey of this.firewall) {
@@ -153,10 +183,18 @@ class Server {
     }
 
     if (this.verbose) {
-      console.log('Firewall denied', HypercoreId.encode(remotePublicKey))
+      console.log('Firewall denied:', HypercoreId.encode(remotePublicKey))
     }
 
     return true
+  }
+
+  _cleanupInvites () {
+    for (const [publicKey, expiry] of this.invites) {
+      if (expiry - Date.now() < 0) {
+        this.invites.delete(publicKey)
+      }
+    }
   }
 }
 

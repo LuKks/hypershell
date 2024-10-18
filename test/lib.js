@@ -416,6 +416,37 @@ test('chaos of tunnels', async function (t) {
   await server.close()
 })
 
+test('invite', async function (t) {
+  t.plan(1)
+
+  const [hs1, hs2, hs3] = await createHypershells(t)
+  const keyPair = crypto.keyPair()
+
+  const server = hs1.createServer({ firewall: [keyPair.publicKey] })
+  await server.listen()
+
+  const admin = hs2.admin(server.publicKey, { keyPair })
+  const invite = await admin.createInvite()
+  await admin.close()
+
+  const seed = Buffer.alloc(32).fill(invite, 0, invite.length)
+  const keyPairInvite = crypto.keyPair(seed)
+
+  const shell = hs3.login(server.publicKey, { keyPair: keyPairInvite })
+  await shell.ready() // Logged in
+  await shell.close()
+
+  try {
+    const shell = hs3.login(server.publicKey, { keyPair: keyPairInvite })
+    await shell.ready()
+    t.fail()
+  } catch (err) {
+    t.is(err.message, 'Could not connect to server')
+  }
+
+  await server.close()
+})
+
 async function recv (port, host) {
   const socket = net.connect(port, host || '127.0.0.1')
 
@@ -446,11 +477,13 @@ async function createHypershells (t) {
 
   const a = new Hypershell({ bootstrap })
   const b = new Hypershell({ bootstrap })
+  const c = new Hypershell({ bootstrap })
 
   t.teardown(() => a.destroy())
   t.teardown(() => b.destroy())
+  t.teardown(() => c.destroy())
 
-  return [a, b]
+  return [a, b, c]
 }
 
 async function createTcpServer (t, onrequest) {

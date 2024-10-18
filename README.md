@@ -112,6 +112,23 @@ Now just `hypershell login home` (it saves you writing the entire public key).
 hypershell login home -- /usr/bin/bash
 ```
 
+#### Invite
+
+Create a short seed for someone to join once into your server:
+
+```sh
+hypershell login home --invite
+# One time invite: hkwsesi4dm1ng
+```
+
+Then someone can use it only once to log in:
+
+```sh
+hypershell login home --invite hkwsesi4dm1ng
+```
+
+They can add themselves into `~/.hypershell/authorized_peers` for permanent access.
+
 ## Copy
 
 Upload a file or folder:
@@ -211,7 +228,7 @@ Available options:
   seed,
   firewall: [], // Set to null to allow everyone
   verbose: false,
-  protocols: ['shell', 'copy', 'tunnel'],
+  protocols: ['shell', 'copy', 'tunnel', 'admin'],
   tunnel: {
     // By default, allows the client to tell the server to connect to anything
     allow: null // Limit it with a an array of addresses like ['127.0.0.1:3000']
@@ -322,6 +339,39 @@ In case of disconnections, it reconnects on background and resends the remote se
 Stop the proxy.
 
 #### `await tunnel.close()`
+
+Close the instance.
+
+## Admin
+
+#### `const admin = hs.admin(publicKey, [options])`
+
+Create an Admin instance.
+
+Available options:
+
+```js
+{
+  keyPair,
+  seed
+}
+```
+
+#### `const shortSeed = await admin.createInvite([options])`
+
+Returns an 8-byte seed to be used to make a key pair.
+
+The public key derived from this short seed is only allowed once in the firewall.
+
+Available options:
+
+```js
+{
+  expiry: 60 * 60 * 1000
+}
+```
+
+#### `await admin.close()`
 
 Close the instance.
 

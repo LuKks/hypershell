@@ -39,6 +39,7 @@
     "read-file-live": "^1.0.1",
     "tar-fs": "^3.0.6",
     "tiny-configs": "^1.1.0",
-    "tt-native": "^1.1.1"
+    "tt-native": "^1.1.1",
+    "z32": "^1.1.0"
   }
 }
