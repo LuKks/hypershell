@@ -36,7 +36,7 @@ test('basic shell', async function (t) {
     }
   })
 
-  shell.stdin.write('echo "Hello World!"\n')
+  shell.stdin.write('echo "Hello World!"\r\n')
 
   await t2
 
@@ -80,7 +80,7 @@ test('shell - exit code', async function (t) {
   const shell = hs2.login(server.publicKey, { keyPair })
   await shell.ready()
 
-  shell.stdin.write('exit 127\n')
+  shell.stdin.write('exit 127\r\n')
 
   await shell.fullyClosed()
   t.is(shell.exitCode, 127)
