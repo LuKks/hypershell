@@ -79,6 +79,10 @@ module.exports = class Hypershell {
       await this.dht.destroy()
     }
   }
+
+  static keyPair (seed) {
+    return crypto.keyPair(seed)
+  }
 }
 
 class Server {

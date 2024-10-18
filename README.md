@@ -2,73 +2,62 @@
 
 Spawn shells anywhere. Fully peer-to-peer, authenticated, and end to end encrypted.
 
-## Install
-
 ```
 npm i -g hypershell
 ```
 
 ## Usage
 
-```shell
+```sh
+# Run a multi-purpose server
+hypershell server # [-f keyfile] [--firewall filename] [--disable-firewall]
+
+# Shell into the server
+hypershell login key-or-name # [-f keyfile]
+
+# Transfer files
+hypershell copy [@host:]source [@host:]target # [-f keyfile]
+
+# Local and remote port forwarding
+hypershell tunnel key-or-name -L [address:]port:host:hostport # [-f keyfile]
+hypershell tunnel key-or-name -R [address:]port:host:hostport # [-f keyfile]
+
 # Create a key
-hypershell keygen [-f keyfile] [-c comment]
-
-# Create a P2P server
-hypershell server [-f keyfile] [--firewall filename] [--disable-firewall] [--protocol name]
-
-# Connect to a P2P shell
-hypershell login <server-key-or-name> [-f keyfile]
-
-# Local tunnel that forwards to remote host
-hypershell tunnel <server-key-or-name> -L [address:]port:host:hostport
-
-# Copy files (download and upload)
-hypershell copy <[@host:]source> <[@host:]target> [-f keyfile]
+hypershell keygen # [-f keyfile] [-c comment]
 ```
 
-Use `--help` with any command for more information, for example `hypershell server --help`.
-
-It can also be imported as a library:
+Use `--help` with any command for more information, e.g. `hypershell server --help`.
 
 ```js
 const Hypershell = require('hypershell')
 
 const hs = new Hypershell()
+const keyPair = Hypershell.keyPair()
 
-const server = hs.createServer()
+const server = hs.createServer({ firewall: [keyPair.publicKey] })
 await server.listen()
 
-const keyPair = crypto.keyPair()
+const shell = hs.login(server.publicKey, {
+  keyPair,
+  stdin: process.stdin,
+  stdout: process.stdout
+})
 
-server.firewall = [keyPair.publicKey]
+await shell.ready()
+await shell.fullyClosed()
 
-const shell = hs.login(server.publicKey, { keyPair })
-
-shell.stdin.write('echo "Hello World!"\n')
+if (shell.exitCode !== null) {
+  process.exitCode = shell.exitCode
+}
 
 await shell.close()
 await server.close()
 await hs.destroy()
 ```
 
-## First steps
+## Server
 
-Keys are automatically created with a default filename on first run.
-
-Otherwise, you can first do:
-
-```sh
-hypershell keygen
-```
-
-Just connect to servers (they have to allow your public key):
-
-```sh
-hypershell login <server name or public key>
-```
-
-You could also create a server:
+Server keys are automatically created on the first run at `~/.hypershell/id_server`.
 
 ```sh
 hypershell server
@@ -78,122 +67,264 @@ hypershell server
 
 Public keys can be added to the list to allow them in real-time.
 
-Or you can use the `--disable-firewall` flag to allow anyone to connect, useful for public services like game servers.
+There is a `--disable-firewall` flag to allow anyone to connect (useful for public services like game servers).
 
-## Known peers
-There will be a file `~/.hypershell/known_peers`.
+#### Running multiple servers
 
-Add named peers to the file like for example:
-```bash
+Use `-f <filename>` to change the primary key.
+
+Use `--firewall <filename>` to change the authorized peers list.
+
+```sh
+hypershell server -f ~/.hypershell/another_id_server --firewall ~/.hypershell/another_authorized_peers
+```
+
+#### Change the default shell
+
+```sh
+SHELL=bash hypershell server
+```
+
+## Login
+
+Client keys are automatically created on the first run at `~/.hypershell/id`.
+
+Connect to a server (they have to allow your public key):
+
+```sh
+hypershell login <server-key-or-name>
+```
+
+#### Known peers
+
+Use the file `~/.hypershell/known_peers` to add peers by name like so:
+
+```sh
 # <name> <public key>
-home cdb7b7774c3d90547ce2038b51367dc4c96c42abf7c2e794bb5eb036ec7793cd 
+home nq98erpfiogzfptca3jcaum7atscfoiyu76ng9x7rfeboa9qeiat 
 ```
 
-Now just `hypershell home` (it saves you writing the entire public key).
+Now just `hypershell login home` (it saves you writing the entire public key).
 
-## hypershell-copy
-Similar to `scp`. It works with files, and with folders recursively.
+#### Variadic command
 
-For the next examples, `remote_peer` is a name that can be added to the `known_peers` file.
-
-Upload a file from your desktop to a remote server:
-```bash
-hypershell-copy ~/Desktop/file.txt @remote_peer:/root/file.txt
+```sh
+hypershell login home -- /usr/bin/bash
 ```
 
-Download a file from a remote server to your desktop:
-```bash
-hypershell-copy @remote_peer:/root/database.json ~/Desktop/db-backup.json
+## Copy
+
+Upload a file or folder:
+
+```sh
+hypershell copy ./file.txt @home:/root/uploaded.txt
 ```
 
-Note: in the future, the `@` might be removed.
+Download a file or folder:
 
-You can also use the public key of the server directly (without `@`):
-```bash
-hypershell-copy ~/Desktop/some-folder cdb7b7774c3d90547ce2038b51367dc4c96c42abf7c2e794bb5eb036ec7793cd:/root/backup-folder
+```sh
+hypershell copy @home:/root/database.json ./downloaded.json
 ```
 
-## Local tunnel
+#### Can use public keys
 
-#### Client
+The public key of the server can be used directly (without `@`):
 
-It creates a local server, and every connection is forwarded to the remote host.
-
-In this example, creates a local tunnel at `127.0.0.1:2020` (where you can connect to),\
-that later gets forwarded to a remote server which it connects to `127.0.0.1:3000`:
-```bash
-hypershell remote_peer -L 127.0.0.1:2020:127.0.0.1:3000
-
-# Local 8080 -> Remote 1080
-hypershell tunnel <peer> -L 8080:127.0.0.1:1080:127.0.0.1
-
-# Remote 80 -> Local 3000
-hypershell tunnel <peer> -R 80:127.0.0.1:3000:127.0.0.1
+```sh
+hypershell copy ./project nq98erpfiogzfptca3jcaum7atscfoiyu76ng9x7rfeboa9qeiat:/root/project
 ```
 
-Instead of `remote_peer` you can use the server public key as well.
+## Tunnel
 
-You can also pass several `-L` to run multiple local servers that remote forwards:
-```bash
-hypershell remote_peer -L 2020:127.0.0.1:3000 -L 2021:127.0.0.1:3000 -L 2022:127.0.0.1:3000
+#### Local port forwarding
+
+Create a local proxy where every connection is forwarded to the server.
+
+Example: Access a private service in the server but locally e.g. a database port.
+
+```sh
+hypershell tunnel home -L 3000:127.0.0.1:3306:127.0.0.1
 ```
 
-#### Server
+#### Remote port forwarding
 
-By default, `hypershell-server` runs a server with full access, including forwarding to all hosts and ports.
+Create a remote proxy where every connection is forwarded locally.
 
-You can run a server with restricted permissions to allow forwarding a specific host and port only.
+Example: Expose your local development React.js app to the internet.
 
-Let's say you have a local project like a React app at `http://127.0.0.1:3000/`,\
-you can create a restricted server to safely share this unique port like so:
+```sh
+hypershell tunnel home -R 80:0.0.0.0:3000:127.0.0.1
+```
 
-```bash
+#### Multiple tunnels at once
+
+You can do this with both `-L` and `-R`.
+
+```sh
+hypershell tunnel home -L 5000:5900:127.0.0.1 -L 3000:3389:127.0.0.1
+```
+
+#### Restrict tunnel server
+
+A server runs with full access by default, including forwarding to all hosts and ports.
+
+You can run the server as tunnel only, and limiting to a specific set of addresses.
+
+Example: You want to safely share your React.js app to someone.
+
+```sh
 hypershell server --protocol tunnel --tunnel 127.0.0.1:3000
 ```
 
-Or if you want to allow multiple hosts, port range, etc:
+Range of ports are also valid: `--tunnel 127.0.0.1:4100-4200`
 
-```bash
-hypershell server --protocol tunnel --tunnel 127.0.0.1:4100-4200 --tunnel 192.168.0.25:1080
+## API
+
+#### `const hs = new Hypershell([options])`
+
+Create a Hypershell instance.
+
+Available options:
+
+```js
+{
+  dht,
+  bootstrap
+}
 ```
 
-Clients trying to use any different hosts/ports are automatically disconnected.
+#### `await hs.destroy()`
 
-## Multiple keys
-To have multiple servers, you need multiple keys.
+Close the Hypershell instance.
 
-Generate another key:
-```bash
-hypershell-keygen -f ~/.hypershell/my-server
+## Server
+
+#### `const server = hs.createServer([options])`
+
+Create a Hypershell server.
+
+Available options:
+
+```js
+{
+  keyPair,
+  seed,
+  firewall: [], // Set to null to allow everyone
+  verbose: false,
+  protocols: ['shell', 'copy', 'tunnel'],
+  tunnel: {
+    // By default, allows the client to tell the server to connect to anything
+    allow: null // Limit it with a an array of addresses like ['127.0.0.1:3000']
+  }
+}
 ```
 
-Now create a new shell server:
-```bash
-hypershell-server -f ~/.hypershell/my-server --firewall ~/.hypershell/my-server-firewall
+Can also edit `server.firewall = [...]` in real-time.
+
+## Login
+
+#### `const shell = hs.login(publicKey, [options])`
+
+Create a Shell instance.
+
+Available options:
+
+```js
+{
+  keyPair,
+  seed,
+  rawArgs,
+  stdin,
+  stdout,
+  onerror
+}
 ```
 
-The client also accepts `-f` in case you need it.
+#### `await shell.ready()`
 
-## Restrict server protocols
+Waits until is connected to the server or throws if couldn't connect.
 
-This is the list of server protocols:
-- `shell`
-- `upload`
-- `download`
-- `tunnel`
+#### `await shell.close()`
 
-By default, all of them are enabled when running a server.
+Close the instance.
 
-For example, you could limit it to shell only:\
-`hypershell-server --protocol shell`
+#### `await shell.fullyClosed()`
 
-Or only allow file upload and/or download:\
-`hypershell-server --protocol upload --protocol download`
+Will resolve when the shell is fully closed (e.g. `exit` command).
 
-Restrict to tunnel only:\
-`hypershell-server --protocol tunnel`
+#### `shell.exitCode`
 
-For example, if you only allow `tunnel`, then any attempt from clients to `shell` into the server will auto disconnect them.
+Indicates the exit code from the remote shell, by default `null`.
+
+## Copy
+
+#### `const transfer = hs.copy(publicKey, [options])`
+
+Create a Copy instance.
+
+Available options:
+
+```js
+{
+  keyPair,
+  seed,
+  permissions: [], // Possible values: 'pack' and 'extract'
+  onerror
+}
+```
+
+#### `await transfer.upload(source, destination)`
+
+Upload a file or folder.
+
+#### `await transfer.download(source, destination)`
+
+Download a file or folder.
+
+#### `await transfer.close()`
+
+Close the instance.
+
+## Tunnel
+
+#### `const tunnel = hs.tunnel(publicKey, [options])`
+
+Create a Tunnel instance.
+
+Available options:
+
+```js
+{
+  keyPair,
+  seed,
+  allow: [] // By default, it blocks all remote connect commands
+}
+```
+
+#### `const proxy = await tunnel.local(localAddress, remoteAddress)`
+
+Create a local proxy server that forwards to the remote address.
+
+Throws an error if initially can't connect to the server.
+
+In case of disconnections, it automatically recovers on the next local connection.
+
+#### `const proxy = await tunnel.remote(remoteAddress, localAddress)`
+
+Create a proxy on the server that forwards to the local address.
+
+Throws an error if initially can't connect to the server.
+
+In case of disconnections, it reconnects on background and resends the remote server command.
+
+#### `await proxy.close()`
+
+Stop the proxy.
+
+#### `await tunnel.close()`
+
+Close the instance.
 
 ## License
+
 Apache-2.0

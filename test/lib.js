@@ -58,7 +58,7 @@ test('shell - server is closed first', async function (t) {
 
   await shell.ready()
   await server.close()
-  await shell.channel.fullyClosed()
+  await shell.fullyClosed()
 
   const err = getStreamError(shell.socket)
 
@@ -82,7 +82,7 @@ test('shell - exit code', async function (t) {
 
   shell.stdin.write('exit 127\n')
 
-  await shell.channel.fullyClosed()
+  await shell.fullyClosed()
   t.is(shell.exitCode, 127)
 
   await server.close()
