@@ -11,7 +11,7 @@ const main = program
   .addCommand(require('./bin/server.js'))
   .addCommand(require('./bin/login.js'))
   .addCommand(require('./bin/copy.js'))
-  // .addCommand(require('./bin/tunnel.js'))
+  .addCommand(require('./bin/tunnel.js'))
 
 main.parseAsync().catch(err => {
   safetyCatch(err)

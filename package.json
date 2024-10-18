@@ -32,7 +32,7 @@
     "hypercore-crypto": "^3.4.2",
     "hypercore-id-encoding": "^1.3.0",
     "hyperdht": "^6.19.0",
-    "listen-async": "^1.0.0",
+    "like-bind": "^1.0.0",
     "protomux": "^3.10.0",
     "protomux-rpc": "^1.6.0",
     "pump": "^3.0.2",

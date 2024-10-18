@@ -1,0 +1,10 @@
+const { createCommand } = require('commander')
+
+module.exports = createCommand('tunnel')
+  .description('port forwarding')
+  .argument('<key or name>', 'public key or name of the server')
+  .option('-L <[address:]port:host:hostport...>', 'local port forwarding')
+  .option('-R <[address:]port:host:hostport...>', 'remote port forwarding')
+  .option('-f <filename>', 'filename of the seed key file')
+  .option('--bootstrap <nodes...>', 'custom dht nodes')
+  .action(require('../lib/bin/tunnel.js'))
