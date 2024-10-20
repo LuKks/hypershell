@@ -160,7 +160,7 @@ Create a local proxy where every connection is forwarded to the server.
 Example: Access a private service in the server but locally e.g. a database port.
 
 ```sh
-hypershell tunnel home -L 3000:127.0.0.1:3306:127.0.0.1
+hypershell tunnel home -L 127.0.0.1:3000:127.0.0.1:3306
 ```
 
 #### Remote port forwarding
@@ -170,7 +170,7 @@ Create a remote proxy where every connection is forwarded locally.
 Example: Expose your local development React.js app to the internet.
 
 ```sh
-hypershell tunnel home -R 80:0.0.0.0:3000:127.0.0.1
+hypershell tunnel home -R 0.0.0.0:80:127.0.0.1:3000
 ```
 
 #### Multiple tunnels at once
@@ -178,7 +178,7 @@ hypershell tunnel home -R 80:0.0.0.0:3000:127.0.0.1
 You can do this with both `-L` and `-R`.
 
 ```sh
-hypershell tunnel home -L 5000:5900:127.0.0.1 -L 3000:3389:127.0.0.1
+hypershell tunnel home -L 5000:127.0.0.1:5900 -L 3000:127.0.0.1:3389
 ```
 
 #### Restrict tunnel server
