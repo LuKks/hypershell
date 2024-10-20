@@ -318,7 +318,11 @@ Available options:
 }
 ```
 
-#### `const proxy = await tunnel.local(localAddress, remoteAddress)`
+#### `await tunnel.ready()`
+
+Optionally wait for being connected to the server.
+
+#### `const proxy = tunnel.local(localAddress, remoteAddress)`
 
 Create a local proxy server that forwards to the remote address.
 
@@ -326,13 +330,17 @@ Throws an error if initially can't connect to the server.
 
 In case of disconnections, it automatically recovers on the next local connection.
 
-#### `const proxy = await tunnel.remote(remoteAddress, localAddress)`
+#### `const proxy = tunnel.remote(remoteAddress, localAddress)`
 
 Create a proxy on the server that forwards to the local address.
 
 Throws an error if initially can't connect to the server.
 
 In case of disconnections, it reconnects on background and resends the remote server command.
+
+#### `await proxy.ready()`
+
+Wait for the proxy to be listening for connections.
 
 #### `await proxy.close()`
 
