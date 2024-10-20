@@ -152,7 +152,7 @@ test('basic tunnel - local forwarding', async function (t) {
     })
   })
 
-  const proxy = tunnel.local(localPort + ':127.0.0.1', remotePort + ':127.0.0.1')
+  const proxy = tunnel.local('127.0.0.1:' + localPort, '127.0.0.1:' + remotePort)
   await proxy.ready()
 
   const socket = net.connect(localPort, '127.0.0.1')
@@ -201,7 +201,7 @@ test('tunnel allowance', async function (t) {
 
   const tunnel = hs2.tunnel(server.publicKey, { keyPair })
 
-  const proxy = tunnel.local(localPort + ':127.0.0.1', blockedRemotePort + ':127.0.0.1')
+  const proxy = tunnel.local('127.0.0.1:' + localPort, '127.0.0.1:' + blockedRemotePort)
   await proxy.ready()
 
   // Fails to connect
@@ -209,7 +209,7 @@ test('tunnel allowance', async function (t) {
   await new Promise(resolve => socket.on('close', resolve))
 
   // Change to the allowed remote port
-  proxy.forwardTo(remotePort + ':127.0.0.1')
+  proxy.forwardTo('127.0.0.1:' + remotePort)
 
   // Able to connect
   const socket2 = net.connect(localPort, '127.0.0.1')
@@ -248,7 +248,7 @@ test('basic tunnel - remote forwarding', async function (t) {
 
   const remotePort = await freePort()
 
-  const proxy = tunnel.remote(remotePort + ':127.0.0.1', localPort + ':127.0.0.1')
+  const proxy = tunnel.remote('127.0.0.1:' + remotePort, '127.0.0.1:' + localPort)
   await proxy.ready()
 
   const socket = net.connect(remotePort, '127.0.0.1')
@@ -322,7 +322,7 @@ test('tunnel - remote forwarding - retry on background', async function (t) {
 
   const remotePort = await freePort()
 
-  const proxy = tunnel.remote(remotePort + ':127.0.0.1', localPort + ':127.0.0.1')
+  const proxy = tunnel.remote('127.0.0.1:' + remotePort, '127.0.0.1:' + localPort)
   await proxy.ready()
 
   t.alike(await recv(remotePort), Buffer.from('Hello World!'))
@@ -368,8 +368,8 @@ test('chaos of tunnels', async function (t) {
     })
   })
 
-  const localProxy1 = tunnel.local(localPort1 + ':127.0.0.1', remotePort1 + ':127.0.0.1')
-  const localProxy2 = tunnel.local(localPort2 + ':127.0.0.1:' + remotePort2 + ':127.0.0.1')
+  const localProxy1 = tunnel.local('127.0.0.1:' + localPort1, '127.0.0.1:' + remotePort1)
+  const localProxy2 = tunnel.local('127.0.0.1: ' + localPort2 + ':127.0.0.1:' + remotePort2)
 
   await localProxy1.ready()
   await localProxy2.ready()
@@ -388,8 +388,8 @@ test('chaos of tunnels', async function (t) {
   const remotePort3 = await freePort()
   const remotePort4 = await freePort()
 
-  const remoteProxy1 = tunnel.remote(remotePort3 + ':127.0.0.1', localPort3 + ':127.0.0.1')
-  const remoteProxy2 = tunnel.remote(remotePort4 + ':127.0.0.1:' + localPort4 + ':127.0.0.1')
+  const remoteProxy1 = tunnel.remote('127.0.0.1:' + remotePort3, '127.0.0.1:' + localPort3)
+  const remoteProxy2 = tunnel.remote('127.0.0.1:' + remotePort4 + ':127.0.0.1:' + localPort4)
 
   await remoteProxy1.ready()
   await remoteProxy2.ready()
