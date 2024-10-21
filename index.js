@@ -3,6 +3,7 @@ const Protomux = require('protomux')
 const HypercoreId = require('hypercore-id-encoding')
 const crypto = require('hypercore-crypto')
 const safetyCatch = require('safety-catch')
+const crayon = require('tiny-crayon')
 const { ShellServer, ShellClient } = require('./lib/protocols/shell.js')
 const Copy = require('./lib/protocols/copy.js')
 const Tunnel = require('./lib/protocols/tunnel.js')
@@ -137,7 +138,7 @@ class Server {
     this._connections.add(socket)
 
     if (this.verbose) {
-      console.log('Connection opened', HypercoreId.encode(socket.remotePublicKey))
+      console.log(crayon.green('Connection opened'), HypercoreId.encode(socket.remotePublicKey), '(' + this._connections.size + ')')
     }
 
     socket.setKeepAlive(5000)
@@ -148,7 +149,7 @@ class Server {
       this._connections.delete(socket)
 
       if (this.verbose) {
-        console.log('Connection closed', HypercoreId.encode(socket.remotePublicKey))
+        console.log(crayon.gray('Connection closed'), HypercoreId.encode(socket.remotePublicKey), '(' + this._connections.size + ')')
       }
     })
 
@@ -167,7 +168,7 @@ class Server {
     for (const [publicKey] of this.invites) {
       if (remotePublicKey.equals(Buffer.from(publicKey, 'hex'))) {
         if (this.verbose) {
-          console.log('Invite accepted:', HypercoreId.encode(remotePublicKey))
+          console.log(crayon.cyan('Invite accepted'), HypercoreId.encode(remotePublicKey))
         }
 
         this.invites.delete(publicKey)
@@ -183,7 +184,7 @@ class Server {
     }
 
     if (this.verbose) {
-      console.log('Firewall denied:', HypercoreId.encode(remotePublicKey))
+      console.log(crayon.red('Connection denied'), HypercoreId.encode(remotePublicKey))
     }
 
     return true
