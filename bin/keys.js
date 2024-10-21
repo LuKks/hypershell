@@ -16,6 +16,7 @@ keys
 keys
   .command('allow <public-key-or-name>')
   .description('authorize a peer into the server')
+  .option('--firewall <filename>', 'list of allowed public keys')
   .action(require('../lib/bin/keys-allow.js'))
 
 module.exports = keys
