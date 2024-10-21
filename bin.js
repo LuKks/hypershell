@@ -12,6 +12,7 @@ const main = program
   .addCommand(require('./bin/copy.js'))
   .addCommand(require('./bin/tunnel.js'))
   .addCommand(require('./bin/keygen.js'))
+  .addCommand(require('./bin/keys.js'))
 
 main.parseAsync().catch(err => {
   safetyCatch(err)
